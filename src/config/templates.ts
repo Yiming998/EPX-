@@ -45,7 +45,7 @@ export const TEMPLATES_CONFIG: Template[] = [
   },
   {
     "id": "3",
-    "name": "二级页面baner",
+    "name": "二级页面banner",
     "description": "招聘网站二级页banner",
     "width": 1920,
     "height": 280,
