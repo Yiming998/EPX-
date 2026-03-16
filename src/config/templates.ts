@@ -1,0 +1,72 @@
+import { Template } from '../types';
+
+export const TEMPLATES_CONFIG: Template[] = [
+  {
+    id: '1',
+    name: '小红书配图 (3:4)',
+    description: '适用于小红书笔记配图，标准3:4比例',
+    width: 1242,
+    height: 1660,
+    backgroundColor: '#ffffff',
+    imageOpacity: 100,
+    maskEnabled: true,
+    maskType: 'gradient',
+    maskColor: 'rgba(0, 0, 0, 0.4)',
+    maskGradientColors: ['rgba(0, 0, 0, 0.6)', 'rgba(0, 0, 0, 0)'],
+    maskGradientAngle: 180,
+    maskOpacity: 60,
+    maskBlendMode: 'multiply',
+    order: 0
+  },
+  {
+    id: '2',
+    name: '朋友圈封面 (1:1)',
+    description: '适用于微信朋友圈封面或头像',
+    width: 1080,
+    height: 1080,
+    backgroundColor: '#f8f9fa',
+    imageOpacity: 100,
+    maskEnabled: false,
+    maskType: 'solid',
+    maskColor: 'rgba(0, 0, 0, 0.2)',
+    maskGradientColors: ['rgba(0, 0, 0, 0.5)', 'rgba(255, 255, 255, 0)'],
+    maskGradientAngle: 90,
+    maskOpacity: 30,
+    maskBlendMode: 'normal',
+    order: 1
+  },
+  {
+    id: '3',
+    name: '电商主图 (1:1)',
+    description: '适用于电商平台商品主图',
+    width: 800,
+    height: 800,
+    backgroundColor: '#ffffff',
+    imageOpacity: 100,
+    maskEnabled: true,
+    maskType: 'solid',
+    maskColor: 'rgba(255, 255, 255, 0.1)',
+    maskGradientColors: ['rgba(255, 255, 255, 0.5)', 'rgba(255, 255, 255, 0)'],
+    maskGradientAngle: 45,
+    maskOpacity: 10,
+    maskBlendMode: 'overlay',
+    order: 2
+  },
+  {
+    id: '4',
+    name: '手机壁纸 (9:16)',
+    description: '适用于手机高清壁纸',
+    width: 1080,
+    height: 1920,
+    backgroundColor: '#000000',
+    imageOpacity: 100,
+    maskEnabled: true,
+    maskType: 'gradient',
+    maskColor: 'rgba(0, 0, 0, 0.5)',
+    maskGradientColors: ['rgba(0, 0, 0, 0.8)', 'rgba(0, 0, 0, 0.2)'],
+    maskGradientAngle: 180,
+    maskOpacity: 40,
+    maskBlendMode: 'normal',
+    order: 3
+  }
+];

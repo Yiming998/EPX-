@@ -63,14 +63,45 @@ export const ImageEditor: React.FC = () => {
       let fill: any = template.maskColor;
       
       if (template.maskType === 'gradient') {
+        let angle = template.maskGradientAngle;
+        let colorStops: any[] = [
+          { offset: 0, color: template.maskGradientColors[0] },
+          { offset: 1, color: template.maskGradientColors[1] }
+        ];
+
+        if (template.maskGradientCSS) {
+          const angleMatch = template.maskGradientCSS.match(/(-?\d+)deg/);
+          if (angleMatch) angle = parseInt(angleMatch[1]);
+
+          const stopRegex = /((?:rgba?|hsla?)\([^)]+\)|#[a-fA-F0-9]{3,8})\s+(\d+)%/gi;
+          let match;
+          const parsedStops = [];
+          while ((match = stopRegex.exec(template.maskGradientCSS)) !== null) {
+            parsedStops.push({
+              color: match[1],
+              offset: parseInt(match[2]) / 100
+            });
+          }
+          
+          if (parsedStops.length > 0) {
+            colorStops = parsedStops;
+          } else {
+            // Fallback if no percentages are found in the CSS string
+            const colorsMatch = template.maskGradientCSS.match(/(?:rgba?|hsla?)\([^)]+\)|#[a-fA-F0-9]{3,8}/gi);
+            if (colorsMatch && colorsMatch.length > 0) {
+              colorStops = colorsMatch.map((color, index) => ({
+                color,
+                offset: colorsMatch.length === 1 ? 0 : index / (colorsMatch.length - 1)
+              }));
+            }
+          }
+        }
+
         fill = new fabric.Gradient({
           type: 'linear',
           gradientUnits: 'pixels',
-          coords: getGradientCoords(template.maskGradientAngle, template.width, template.height),
-          colorStops: [
-            { offset: 0, color: template.maskGradientColors[0] },
-            { offset: 1, color: template.maskGradientColors[1] }
-          ]
+          coords: getGradientCoords(angle, template.width, template.height),
+          colorStops: colorStops
         });
       }
 

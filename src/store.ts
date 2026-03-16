@@ -1,53 +1,63 @@
-import { 
-  collection, 
-  getDocs, 
-  setDoc, 
-  doc, 
-  deleteDoc, 
-  query, 
-  orderBy, 
-  getDoc,
-  writeBatch
-} from 'firebase/firestore';
-import { db } from './firebase';
 import { Template } from './types';
+import { TEMPLATES_CONFIG } from './config/templates';
 
-const COLLECTION_NAME = 'templates';
+const STORAGE_KEY = 'epx_templates_v1';
+
+const getStoredTemplates = (): Template[] => {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch (e) {
+      console.error('Failed to parse stored templates', e);
+    }
+  }
+  return TEMPLATES_CONFIG;
+};
+
+const saveStoredTemplates = (templates: Template[]) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+};
 
 export const getTemplates = async (): Promise<Template[]> => {
-  const q = query(collection(db, COLLECTION_NAME), orderBy('order', 'asc'));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({ ...doc.data() } as Template));
-};
-
-export const saveTemplate = async (template: Template) => {
-  const templates = await getTemplates();
-  const existing = templates.find(t => t.id === template.id);
-  
-  const templateData = {
-    ...template,
-    order: existing?.order ?? templates.length,
-    updatedAt: new Date().toISOString()
-  };
-
-  await setDoc(doc(db, COLLECTION_NAME, template.id), templateData);
-};
-
-export const deleteTemplate = async (id: string) => {
-  await deleteDoc(doc(db, COLLECTION_NAME, id));
-};
-
-export const saveAllTemplates = async (templates: Template[]) => {
-  const batch = writeBatch(db);
-  templates.forEach((template, index) => {
-    const ref = doc(db, COLLECTION_NAME, template.id);
-    batch.set(ref, { ...template, order: index }, { merge: true });
-  });
-  await batch.commit();
+  return getStoredTemplates().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 };
 
 export const getTemplateById = async (id: string): Promise<Template | undefined> => {
-  const docRef = doc(db, COLLECTION_NAME, id);
-  const docSnap = await getDoc(docRef);
-  return docSnap.exists() ? (docSnap.data() as Template) : undefined;
+  return getStoredTemplates().find(t => t.id === id);
+};
+
+export const saveTemplate = async (template: Template) => {
+  const templates = getStoredTemplates();
+  const index = templates.findIndex(t => t.id === template.id);
+  
+  const templateData = {
+    ...template,
+    updatedAt: new Date().toISOString()
+  };
+
+  if (index >= 0) {
+    templates[index] = templateData;
+  } else {
+    templates.push({
+      ...templateData,
+      order: templates.length
+    });
+  }
+  
+  saveStoredTemplates(templates);
+};
+
+export const deleteTemplate = async (id: string) => {
+  const templates = getStoredTemplates().filter(t => t.id !== id);
+  saveStoredTemplates(templates);
+};
+
+export const saveAllTemplates = async (templates: Template[]) => {
+  saveStoredTemplates(templates.map((t, i) => ({ ...t, order: i })));
+};
+
+export const resetTemplates = async () => {
+  localStorage.removeItem(STORAGE_KEY);
+  return TEMPLATES_CONFIG;
 };

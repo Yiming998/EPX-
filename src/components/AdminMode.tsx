@@ -1,177 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { getTemplates, deleteTemplate, saveAllTemplates } from '../store';
+import { getTemplates, deleteTemplate, saveAllTemplates, resetTemplates } from '../store';
 import { Template } from '../types';
-import { Plus, Edit2, Trash2, GripVertical, ShieldAlert } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  rectSortingStrategy,
-  useSortable
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-
-interface SortableTemplateCardProps {
-  template: Template;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-}
-
-const SortableTemplateCard: React.FC<SortableTemplateCardProps> = ({ template, onEdit, onDelete }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: template.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 10 : 1,
-  };
-
-  return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-shadow flex flex-col h-48 relative ${isDragging ? 'ring-2 ring-indigo-500' : ''}`}
-    >
-      <div className="mb-2">
-        <div className="flex items-center gap-2 overflow-hidden mb-1">
-          <button 
-            className="text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing shrink-0"
-            {...attributes} 
-            {...listeners}
-          >
-            <GripVertical size={18} />
-          </button>
-          <h3 className="font-semibold text-slate-800 text-lg truncate" title={template.name}>{template.name}</h3>
-        </div>
-        <div className="pl-7">
-          <span className="inline-block bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-md font-mono">
-            {template.width} &times; {template.height}
-          </span>
-        </div>
-      </div>
-      <p className="text-slate-500 text-sm mb-4 flex-1 overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-        {template.description || '暂无备注信息'}
-      </p>
-      <div className="flex justify-end gap-2 mt-auto pt-4 border-t border-slate-100">
-        <button
-          onClick={() => onEdit(template.id)}
-          className="p-2 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
-          title="编辑"
-        >
-          <Edit2 size={18} />
-        </button>
-        <button
-          onClick={() => onDelete(template.id)}
-          className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-          title="删除"
-        >
-          <Trash2 size={18} />
-        </button>
-      </div>
-    </div>
-  );
-};
+import { useNavigate, Link } from 'react-router-dom';
+import { Plus, Edit2, Trash2, GripVertical, RotateCcw, Download } from 'lucide-react';
 
 export const AdminMode: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
   const loadTemplates = async () => {
-    if (!user || !isAdmin) {
-      setLoading(false);
-      return;
-    }
     setLoading(true);
-    try {
-      const data = await getTemplates();
-      setTemplates(data);
-    } catch (error) {
-      console.error('Failed to load templates:', error);
-    } finally {
-      setLoading(false);
-    }
+    const data = await getTemplates();
+    setTemplates(data);
+    setLoading(false);
   };
 
   useEffect(() => {
-    if (!authLoading) {
+    loadTemplates();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('确定要删除这个模板吗？')) {
+      await deleteTemplate(id);
       loadTemplates();
     }
-  }, [user, isAdmin, authLoading]);
-
-  const handleDeleteClick = (id: string) => {
-    setDeleteId(id);
   };
 
-  const confirmDelete = async () => {
-    if (deleteId) {
-      try {
-        await deleteTemplate(deleteId);
-        await loadTemplates();
-        setDeleteId(null);
-      } catch (error) {
-        console.error('Failed to delete template:', error);
-      }
+  const handleReset = async () => {
+    if (window.confirm('确定要重置所有模板到默认配置吗？这将清除您所有的本地修改。')) {
+      await resetTemplates();
+      loadTemplates();
     }
   };
 
-  const cancelDelete = () => {
-    setDeleteId(null);
+  const handleExport = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(templates, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href",     dataStr);
+    downloadAnchorNode.setAttribute("download", "templates_config.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const oldIndex = templates.findIndex((item) => item.id === active.id);
-      const newIndex = templates.findIndex((item) => item.id === over.id);
-
-      const newTemplates = arrayMove(templates, oldIndex, newIndex) as Template[];
-      setTemplates(newTemplates);
-      
-      try {
-        await saveAllTemplates(newTemplates);
-      } catch (error) {
-        console.error('Failed to save template order:', error);
-        loadTemplates(); // Revert on error
-      }
-    }
-  };
-
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <div className="p-8 max-w-5xl mx-auto flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -179,103 +52,109 @@ export const AdminMode: React.FC = () => {
     );
   }
 
-  if (!user || !isAdmin) {
-    return (
-      <div className="p-8 max-w-5xl mx-auto">
-        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
-          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShieldAlert className="text-red-600" size={32} />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">访问受限</h2>
-          <p className="text-slate-500 mb-8 max-w-md mx-auto">您没有权限访问管理页面。请确保您已使用管理员账号登录。</p>
-          <button
-            onClick={() => navigate('/')}
-            className="text-indigo-600 font-medium hover:text-indigo-700"
-          >
-            返回首页 &rarr;
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">模板管理</h1>
-          <p className="text-slate-500 mt-2">创建和管理您的图片模板，拖拽可调整排序。</p>
+          <p className="text-slate-500 mt-2">添加、编辑或删除图片处理模板。</p>
         </div>
-        <button
-          onClick={() => navigate('/admin/template/new')}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-        >
-          <Plus size={20} />
-          新建模板
-        </button>
-      </div>
-
-      {templates.length === 0 ? (
-        <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl p-12 text-center">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Plus className="text-slate-400" size={32} />
-          </div>
-          <h3 className="text-lg font-medium text-slate-900 mb-1">暂无模板</h3>
-          <p className="text-slate-500 mb-4">开始创建您的第一个模板吧。</p>
+        <div className="flex gap-3">
+          <button
+            onClick={handleExport}
+            className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
+            title="导出为 JSON 配置文件"
+          >
+            <Download size={18} />
+            导出配置
+          </button>
+          <button
+            onClick={handleReset}
+            className="bg-white border border-slate-200 text-red-600 px-4 py-2 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center gap-2"
+          >
+            <RotateCcw size={18} />
+            重置默认
+          </button>
           <button
             onClick={() => navigate('/admin/template/new')}
-            className="text-indigo-600 font-medium hover:text-indigo-700"
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm"
           >
-            创建模板 &rarr;
+            <Plus size={18} />
+            新建模板
           </button>
         </div>
-      ) : (
-        <DndContext 
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext 
-            items={templates.map(t => t.id)}
-            strategy={rectSortingStrategy}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {templates.map((template) => (
-                <SortableTemplateCard 
-                  key={template.id} 
-                  template={template} 
-                  onEdit={(id) => navigate(`/admin/template/${id}`)}
-                  onDelete={handleDeleteClick}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      )}
+      </div>
 
-      {/* Custom Delete Confirmation Modal */}
-      {deleteId && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
-            <h3 className="text-xl font-bold text-slate-800 mb-2">确认删除</h3>
-            <p className="text-slate-600 mb-6">您确定要删除这个模板吗？此操作无法撤销。</p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={cancelDelete}
-                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium"
-              >
-                取消
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
-              >
-                确认删除
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="px-6 py-4 text-sm font-semibold text-slate-600 w-12 text-center">排序</th>
+              <th className="px-6 py-4 text-sm font-semibold text-slate-600">模板名称</th>
+              <th className="px-6 py-4 text-sm font-semibold text-slate-600">尺寸 (px)</th>
+              <th className="px-6 py-4 text-sm font-semibold text-slate-600">遮罩状态</th>
+              <th className="px-6 py-4 text-sm font-semibold text-slate-600 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {templates.map((template, index) => (
+              <tr key={template.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-6 py-4 text-slate-400 text-center">
+                  <GripVertical size={16} className="mx-auto cursor-move" />
+                </td>
+                <td className="px-6 py-4">
+                  <div className="font-medium text-slate-800">{template.name}</div>
+                  <div className="text-xs text-slate-400 truncate max-w-xs">{template.description || '无描述'}</div>
+                </td>
+                <td className="px-6 py-4 text-sm text-slate-600 font-mono">
+                  {template.width} &times; {template.height}
+                </td>
+                <td className="px-6 py-4">
+                  {template.maskEnabled ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                      已启用 ({template.maskType === 'gradient' ? '渐变' : '纯色'})
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                      未启用
+                    </span>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <Link
+                      to={`/admin/template/${template.id}`}
+                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                      title="编辑"
+                    >
+                      <Edit2 size={18} />
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(template.id)}
+                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      title="删除"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {templates.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-6 py-12 text-center text-slate-500 italic">
+                  暂无模板，点击上方按钮创建一个吧
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      
+      <div className="mt-6 p-4 bg-indigo-50 rounded-lg border border-indigo-100 text-indigo-700 text-sm">
+        <strong>提示：</strong> 这是一个纯前端应用。您在此处所做的更改保存在浏览器的本地存储（LocalStorage）中。
+        如果您希望永久保存这些更改到代码中，请点击“导出配置”并将生成的 JSON 内容更新到 <code>src/config/templates.ts</code> 文件。
+      </div>
     </div>
   );
 };

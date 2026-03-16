@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { getTemplates } from '../store';
 import { Template } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { Image as ImageIcon, LogIn } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Image as ImageIcon } from 'lucide-react';
 
 export const UserMode: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
-  const { authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,12 +21,10 @@ export const UserMode: React.FC = () => {
         setLoading(false);
       }
     };
-    if (!authLoading) {
-      loadTemplates();
-    }
-  }, [authLoading]);
+    loadTemplates();
+  }, []);
 
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <div className="p-8 max-w-5xl mx-auto flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
