@@ -27,26 +27,50 @@ export const TemplateEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [template, setTemplate] = useState<Template>(DEFAULT_TEMPLATE);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (id && id !== 'new') {
-      const existing = getTemplateById(id);
-      if (existing) {
-        setTemplate(existing);
+    const loadTemplate = async () => {
+      if (id && id !== 'new') {
+        setLoading(true);
+        try {
+          const existing = await getTemplateById(id);
+          if (existing) {
+            setTemplate(existing);
+          }
+        } catch (error) {
+          console.error('Failed to load template:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setTemplate({ ...DEFAULT_TEMPLATE, id: uuidv4() });
+        setLoading(false);
       }
-    } else {
-      setTemplate({ ...DEFAULT_TEMPLATE, id: uuidv4() });
-    }
+    };
+    loadTemplate();
   }, [id]);
 
   const handleChange = (field: keyof Template, value: any) => {
     setTemplate((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    saveTemplate(template);
-    navigate('/admin');
+  const handleSave = async () => {
+    try {
+      await saveTemplate(template);
+      navigate('/admin');
+    } catch (error) {
+      console.error('Failed to save template:', error);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-screen bg-slate-50 items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-slate-50">

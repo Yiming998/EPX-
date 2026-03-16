@@ -1,0 +1,35 @@
+{
+  "entities": {
+    "Template": {
+      "title": "Template",
+      "description": "A design template for image editing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "backgroundColor": { "type": "string" },
+        "imageOpacity": { "type": "number" },
+        "maskEnabled": { "type": "boolean" },
+        "maskType": { "type": "string", "enum": ["solid", "gradient"] },
+        "maskColor": { "type": "string" },
+        "maskGradientColors": { "type": "array", "items": { "type": "string" } },
+        "maskGradientAngle": { "type": "number" },
+        "maskOpacity": { "type": "number" },
+        "maskBlendMode": { "type": "string" },
+        "order": { "type": "number", "description": "Display order for templates" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "width", "height"]
+    }
+  },
+  "firestore": {
+    "templates": {
+      "schema": "Template",
+      "description": "Collection of design templates"
+    }
+  }
+}

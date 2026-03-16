@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getTemplates, deleteTemplate, saveAllTemplates } from '../store';
 import { Template } from '../types';
-import { Plus, Edit2, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Edit2, Trash2, GripVertical, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   DndContext,
   closestCenter,
@@ -92,6 +93,8 @@ const SortableTemplateCard: React.FC<SortableTemplateCardProps> = ({ template, o
 
 export const AdminMode: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const sensors = useSensors(
@@ -107,19 +110,41 @@ export const AdminMode: React.FC = () => {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const loadTemplates = async () => {
+    if (!user || !isAdmin) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await getTemplates();
+      setTemplates(data);
+    } catch (error) {
+      console.error('Failed to load templates:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setTemplates(getTemplates());
-  }, []);
+    if (!authLoading) {
+      loadTemplates();
+    }
+  }, [user, isAdmin, authLoading]);
 
   const handleDeleteClick = (id: string) => {
     setDeleteId(id);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteId) {
-      deleteTemplate(deleteId);
-      setTemplates(getTemplates());
-      setDeleteId(null);
+      try {
+        await deleteTemplate(deleteId);
+        await loadTemplates();
+        setDeleteId(null);
+      } catch (error) {
+        console.error('Failed to delete template:', error);
+      }
     }
   };
 
@@ -127,20 +152,52 @@ export const AdminMode: React.FC = () => {
     setDeleteId(null);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      setTemplates((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
+      const oldIndex = templates.findIndex((item) => item.id === active.id);
+      const newIndex = templates.findIndex((item) => item.id === over.id);
 
-        const newTemplates = arrayMove(items, oldIndex, newIndex) as Template[];
-        saveAllTemplates(newTemplates);
-        return newTemplates;
-      });
+      const newTemplates = arrayMove(templates, oldIndex, newIndex) as Template[];
+      setTemplates(newTemplates);
+      
+      try {
+        await saveAllTemplates(newTemplates);
+      } catch (error) {
+        console.error('Failed to save template order:', error);
+        loadTemplates(); // Revert on error
+      }
     }
   };
+
+  if (loading || authLoading) {
+    return (
+      <div className="p-8 max-w-5xl mx-auto flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return (
+      <div className="p-8 max-w-5xl mx-auto">
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert className="text-red-600" size={32} />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">访问受限</h2>
+          <p className="text-slate-500 mb-8 max-w-md mx-auto">您没有权限访问管理页面。请确保您已使用管理员账号登录。</p>
+          <button
+            onClick={() => navigate('/')}
+            className="text-indigo-600 font-medium hover:text-indigo-700"
+          >
+            返回首页 &rarr;
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-5xl mx-auto">

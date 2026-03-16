@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: templates
+    // Document ID: uuid
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required)
+    //   - description: string (optional)
+    //   - width: number (required)
+    //   - height: number (required)
+    //   - backgroundColor: string
+    //   - imageOpacity: number
+    //   - maskEnabled: bool
+    //   - maskType: string
+    //   - maskColor: string
+    //   - maskGradientColors: list
+    //   - maskGradientAngle: number
+    //   - maskOpacity: number
+    //   - maskBlendMode: string
+    //   - order: number
+    //   - createdAt: string
+    //   - updatedAt: string
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "xym8866668@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidTemplate(data) {
+      return data.keys().hasAll(['id', 'name', 'width', 'height']) &&
+             data.keys().hasOnly(['id', 'name', 'description', 'width', 'height', 'backgroundColor', 'imageOpacity', 'maskEnabled', 'maskType', 'maskColor', 'maskGradientColors', 'maskGradientAngle', 'maskOpacity', 'maskBlendMode', 'order', 'createdAt', 'updatedAt']) &&
+             data.id is string && data.id.size() < 100 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (!('description' in data) || (data.description is string && data.description.size() < 1000)) &&
+             data.width is number && data.width > 0 && data.width <= 10000 &&
+             data.height is number && data.height > 0 && data.height <= 10000 &&
+             (!('backgroundColor' in data) || (data.backgroundColor is string && data.backgroundColor.size() < 50)) &&
+             (!('imageOpacity' in data) || (data.imageOpacity is number && data.imageOpacity >= 0 && data.imageOpacity <= 100)) &&
+             (!('maskEnabled' in data) || data.maskEnabled is bool) &&
+             (!('maskType' in data) || (data.maskType in ['solid', 'gradient'])) &&
+             (!('maskColor' in data) || (data.maskColor is string && data.maskColor.size() < 50)) &&
+             (!('maskGradientColors' in data) || (data.maskGradientColors is list && data.maskGradientColors.size() == 2)) &&
+             (!('maskGradientAngle' in data) || (data.maskGradientAngle is number && data.maskGradientAngle >= 0 && data.maskGradientAngle <= 360)) &&
+             (!('maskOpacity' in data) || (data.maskOpacity is number && data.maskOpacity >= 0 && data.maskOpacity <= 100)) &&
+             (!('maskBlendMode' in data) || (data.maskBlendMode is string && data.maskBlendMode.size() < 50)) &&
+             (!('order' in data) || data.order is number);
+    }
+
+    match /templates/{templateId} {
+      // Allow public read access to templates for the user mode
+      allow read: if true;
+      
+      // Only admins can create, update, or delete templates
+      allow create: if isAdmin() && isValidTemplate(request.resource.data);
+      allow update: if isAdmin() && isValidTemplate(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId;
+    }
+  }
+}

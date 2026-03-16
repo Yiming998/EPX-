@@ -13,4 +13,5 @@ export interface Template {
   maskGradientAngle: number; // 0-360
   maskOpacity: number; // 0-100
   maskBlendMode: string; // e.g., 'normal', 'multiply', 'screen', 'overlay'
+  order?: number;
 }

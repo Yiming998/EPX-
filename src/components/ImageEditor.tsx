@@ -9,6 +9,7 @@ export const ImageEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [template, setTemplate] = useState<Template | null>(null);
+  const [loading, setLoading] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
   const imageObjRef = useRef<fabric.Image | null>(null);
@@ -20,11 +21,25 @@ export const ImageEditor: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (id) {
-      const t = getTemplateById(id);
-      if (t) setTemplate(t);
-      else navigate('/');
-    }
+    const loadTemplate = async () => {
+      if (id) {
+        setLoading(true);
+        try {
+          const t = await getTemplateById(id);
+          if (t) {
+            setTemplate(t);
+          } else {
+            navigate('/');
+          }
+        } catch (error) {
+          console.error('Failed to load template:', error);
+          navigate('/');
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    loadTemplate();
   }, [id, navigate]);
 
   useEffect(() => {
@@ -243,6 +258,14 @@ export const ImageEditor: React.FC = () => {
     link.click();
     document.body.removeChild(link);
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-screen bg-slate-50 items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   if (!template) return null;
 
